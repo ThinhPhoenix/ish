@@ -10,6 +10,7 @@ touch ~/.ashrc
 # 3. Ghi cấu hình prompt vào ~/.ashrc
 cat << EOF > ~/.ashrc
 PS1='\\n\\[\\033[37m\\]$USERNAME@$HOSTNAME\\[\\033[0m\\]\\n\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\n\\[\\033[1;32m\\]↝ \\[\\033[0m\\]'
+neofetch
 EOF
 
 # 4. Tự động load ~/.ashrc khi shell khởi động
@@ -31,8 +32,8 @@ cat << EOF > ~/.config/neofetch/config.conf
 ascii_distro="macos"
 EOF
 
-# 9. Tạo script ssh-config nếu chưa có
-cat << 'EOF' > ~/ssh-config
+# 9. Tạo script ssh-config
+cat << 'EOF' > /tmp/ssh-config
 #!/bin/bash
 
 # Usage: ssh-config <host-alias> <user@hostname>
@@ -71,4 +72,15 @@ echo "[✔] Added SSH config for '$ALIAS' -> $USER@$HOST"
 EOF
 
 # 10. Cho phép chạy script ssh-config
-chmod +x ~/ssh-config
+chmod +x /tmp/ssh-config
+
+# 11. Di chuyển ssh-config vào /usr/local/bin nếu có quyền
+if [ -w /usr/local/bin ]; then
+  mv /tmp/ssh-config /usr/local/bin/ssh-config
+  chmod +x /usr/local/bin/ssh-config
+  echo "[✔] Installed ssh-config to /usr/local/bin"
+else
+  mv /tmp/ssh-config ~/ssh-config
+  echo "[!] Could not write to /usr/local/bin, keeping ssh-config in ~/"
+  echo "[!] Use it with: ~/ssh-config <alias> <user@host>"
+fi
