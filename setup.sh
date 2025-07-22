@@ -1,50 +1,74 @@
 #!/bin/ash
 
-# Ask for username and hostname
-echo "Nhập tên user:"
-read USERNAME
-echo "Nhập hostname:"
-read HOSTNAME
+# 1. Hỏi tên người dùng và tên máy
+read -p "User: " USERNAME
+read -p "Hostname: " HOSTNAME
 
-# 1. Tạo ~/.ashrc nếu chưa tồn tại
+# 2. Tạo ~/.ashrc nếu chưa có
 touch ~/.ashrc
 
-# 2. Ghi cấu hình prompt vào ~/.ashrc
+# 3. Ghi cấu hình prompt vào ~/.ashrc
 cat << EOF > ~/.ashrc
 PS1='\\n\\[\\033[37m\\]$USERNAME@$HOSTNAME\\[\\033[0m\\]\\n\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\n\\[\\033[1;32m\\]↝ \\[\\033[0m\\]'
 EOF
 
-# 3. Thêm ENV vào ~/.profile nếu chưa có
+# 4. Tự động load ~/.ashrc khi shell khởi động
 grep -q 'export ENV=~/.ashrc' ~/.profile 2>/dev/null || echo 'export ENV=~/.ashrc' >> ~/.profile
 
-# 4. Tải lại ~/.ashrc
+# 5. Reload lại shell config
 . ~/.ashrc
 
-# 5. Cài neofetch (nếu chưa có)
+# 6. Cài neofetch nếu chưa có
 if ! command -v neofetch >/dev/null 2>&1; then
-  apk update && apk add neofetch
+  apk update && apk add neofetch openssh
 fi
 
-# 6. Lấy phiên bản Alpine
-ALPINE_VERSION=$(cat /etc/alpine-release)
-
-# 7. Tạo thư mục config nếu chưa có
+# 7. Tạo thư mục config neofetch nếu chưa có
 mkdir -p ~/.config/neofetch
 
-# 8. Ghi cấu hình neofetch vào ~/.config/neofetch/config.conf
+# 8. Ghi config neofetch
 cat << EOF > ~/.config/neofetch/config.conf
-print_info() {
-    info title
-    info "OS" "iOS (Alpine Linux $ALPINE_VERSION)"
-    info kernel
-    info uptime
-    info packages
-    info shell
-    info resolution
-    info terminal
-    info cpu
-    info memory
-}
-
 ascii_distro="macos"
 EOF
+
+# 9. Tạo script ssh-config nếu chưa có
+cat << 'EOF' > ~/ssh-config
+#!/bin/bash
+
+# Usage: ssh-config <host-alias> <user@hostname>
+# Example: ssh-config phienserver coffee@ssh.phrimp.io.vn
+
+if [ $# -ne 2 ]; then
+  echo "Usage: ssh-config <host-alias> <user@hostname>"
+  exit 1
+fi
+
+ALIAS="$1"
+USER_AT_HOST="$2"
+
+USER=$(echo "$USER_AT_HOST" | cut -d'@' -f1)
+HOST=$(echo "$USER_AT_HOST" | cut -d'@' -f2)
+
+CONFIG_FILE="$HOME/.ssh/config"
+
+mkdir -p ~/.ssh
+touch "$CONFIG_FILE"
+
+# Check if alias already exists
+if grep -q "Host $ALIAS" "$CONFIG_FILE"; then
+  echo "[✘] Alias '$ALIAS' already exists in $CONFIG_FILE"
+  exit 1
+fi
+
+cat <<EOC >> "$CONFIG_FILE"
+
+Host $ALIAS
+    HostName $HOST
+    User $USER
+EOC
+
+echo "[✔] Added SSH config for '$ALIAS' -> $USER@$HOST"
+EOF
+
+# 10. Cho phép chạy script ssh-config
+chmod +x ~/ssh-config
