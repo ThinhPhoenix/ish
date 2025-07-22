@@ -1,76 +1,50 @@
 #!/bin/ash
 
-echo "[*] Setting up iSH..."
+# Ask for username and hostname
+echo "Nhập tên user:"
+read USERNAME
+echo "Nhập hostname:"
+read HOSTNAME
 
-# 1. Đặt mật khẩu root
-echo "[*] Setting root password"
-passwd root
+# 1. Tạo ~/.ashrc nếu chưa tồn tại
+touch ~/.ashrc
 
-# 2. Tạo user mới và đặt mật khẩu
-echo -n "Enter new username: "
-read newuser
-adduser -D "$newuser"
-passwd "$newuser"
-echo "[*] Added user: $newuser"
-
-# 3. Ghi hostname (không đổi được thực tế do sandbox)
-echo -n "Enter hostname: "
-read myhost
-echo "$myhost" > /etc/hostname
-echo "[!] iSH không cho phép đổi hostname trực tiếp. Đã lưu tên vào /etc/hostname"
-
-# 4. Cài neofetch
-apk update && apk add neofetch
-
-# 5. Tùy chỉnh ASCII Apple logo
-echo "[*] Customizing neofetch Apple logo"
-mkdir -p /usr/share/neofetch/ascii
-cat > /usr/share/neofetch/ascii/apple.txt <<'EOF'
-             .:'         
-         __ :'__        
-      .'`__`-'__``.      
-     :__________.-'     
-     :_________:        
-      :_________`-;     
-       `.__.-.__.'      
+# 2. Ghi cấu hình prompt vào ~/.ashrc
+cat << EOF > ~/.ashrc
+PS1='\\n\\[\\033[37m\\]$USERNAME@$HOSTNAME\\[\\033[0m\\]\\n\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\n\\[\\033[1;32m\\]↝ \\[\\033[0m\\]'
 EOF
 
-# 6. Sửa cấu hình neofetch để hiển thị OS + logo vĩnh viễn
-echo "[*] Customizing neofetch config"
+# 3. Thêm ENV vào ~/.profile nếu chưa có
+grep -q 'export ENV=~/.ashrc' ~/.profile 2>/dev/null || echo 'export ENV=~/.ashrc' >> ~/.profile
+
+# 4. Tải lại ~/.ashrc
+. ~/.ashrc
+
+# 5. Cài neofetch (nếu chưa có)
+if ! command -v neofetch >/dev/null 2>&1; then
+  apk update && apk add neofetch
+fi
+
+# 6. Lấy phiên bản Alpine
 ALPINE_VERSION=$(cat /etc/alpine-release)
-mkdir -p /home/$newuser/.config/neofetch
-cat > /home/$newuser/.config/neofetch/config.conf <<EOF
-ascii_distro="apple"
+
+# 7. Tạo thư mục config nếu chưa có
+mkdir -p ~/.config/neofetch
+
+# 8. Ghi cấu hình neofetch vào ~/.config/neofetch/config.conf
+cat << EOF > ~/.config/neofetch/config.conf
 print_info() {
     info title
-    info underline
-
     info "OS" "iOS (Alpine Linux $ALPINE_VERSION)"
     info kernel
     info uptime
     info packages
     info shell
+    info resolution
     info terminal
     info cpu
     info memory
 }
+
+ascii_distro="macos"
 EOF
-chown -R $newuser:$newuser /home/$newuser/.config
-
-# 7. Cài SSH
-apk add openssh dropbear
-
-# 8. Kích hoạt SSH bằng dropbear
-echo "[*] Starting dropbear SSH server"
-mkdir -p /etc/dropbear
-dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
-echo "/usr/sbin/dropbear -E -F -p 22" > /etc/local.d/dropbear.start
-chmod +x /etc/local.d/dropbear.start
-rc-update add local
-/etc/local.d/dropbear.start
-
-# 9. Tự động login vào user khi mở iSH
-echo "[*] Configuring auto-login to $newuser"
-echo "exec su - $newuser" >> /root/.profile
-
-echo "[✔] Setup complete. iSH will now auto-login as $newuser!"
