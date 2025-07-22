@@ -2,27 +2,29 @@
 
 echo "[*] Setting up iSH..."
 
-# 1. Đặt mật khẩu root (sudo dùng root luôn)
+# 1. Đặt mật khẩu root
 echo "[*] Setting root password"
 passwd root
 
 # 2. Tạo user mới và đặt mật khẩu
-read -p "Enter new username: " newuser
+echo -n "Enter new username: "
+read newuser
 adduser -D "$newuser"
 passwd "$newuser"
 echo "[*] Added user: $newuser"
 
-# 3. Đặt hostname
-read -p "Enter hostname: " myhost
+# 3. Ghi hostname (không đổi được thực tế do sandbox)
+echo -n "Enter hostname: "
+read myhost
 echo "$myhost" > /etc/hostname
-hostname "$myhost"
-echo "[*] Hostname set to $myhost"
+echo "[!] iSH không cho phép đổi hostname trực tiếp. Đã lưu tên vào /etc/hostname"
 
 # 4. Cài neofetch
 apk update && apk add neofetch
 
-# 5. Chỉnh sửa ASCII art thành Apple logo
+# 5. Tùy chỉnh ASCII Apple logo
 echo "[*] Customizing neofetch Apple logo"
+mkdir -p /usr/share/neofetch/ascii
 cat > /usr/share/neofetch/ascii/apple.txt <<'EOF'
              .:'         
          __ :'__        
@@ -33,21 +35,32 @@ cat > /usr/share/neofetch/ascii/apple.txt <<'EOF'
        `.__.-.__.'      
 EOF
 
-# 6. Sửa phần OS hiển thị (kèm version Alpine)
-echo "[*] Customizing OS name in neofetch"
+# 6. Sửa cấu hình neofetch để hiển thị OS + logo vĩnh viễn
+echo "[*] Customizing neofetch config"
 ALPINE_VERSION=$(cat /etc/alpine-release)
-NEOFETCH_FILE="/usr/bin/neofetch"
+mkdir -p /home/$newuser/.config/neofetch
+cat > /home/$newuser/.config/neofetch/config.conf <<EOF
+ascii_distro="apple"
+print_info() {
+    info title
+    info underline
 
-# Backup neofetch
-cp "$NEOFETCH_FILE" "$NEOFETCH_FILE.bak"
+    info "OS" "iOS (Alpine Linux $ALPINE_VERSION)"
+    info kernel
+    info uptime
+    info packages
+    info shell
+    info terminal
+    info cpu
+    info memory
+}
+EOF
+chown -R $newuser:$newuser /home/$newuser/.config
 
-# Replace OS line with iOS (Alpine Linux x.x.x)
-sed -i "s/OS:.*/OS: iOS (Alpine Linux $ALPINE_VERSION)/" "$NEOFETCH_FILE"
-
-# 7. Cài openssh và dropbear
+# 7. Cài SSH
 apk add openssh dropbear
 
-# 8. Kích hoạt SSH (dropbear)
+# 8. Kích hoạt SSH bằng dropbear
 echo "[*] Starting dropbear SSH server"
 mkdir -p /etc/dropbear
 dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
@@ -56,4 +69,8 @@ chmod +x /etc/local.d/dropbear.start
 rc-update add local
 /etc/local.d/dropbear.start
 
-echo "[✔] Setup complete. You can now SSH into iSH!"
+# 9. Tự động login vào user khi mở iSH
+echo "[*] Configuring auto-login to $newuser"
+echo "exec su - $newuser" >> /root/.profile
+
+echo "[✔] Setup complete. iSH will now auto-login as $newuser!"
