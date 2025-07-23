@@ -10,7 +10,6 @@ touch ~/.ashrc
 # 3. Ghi cấu hình prompt vào ~/.ashrc
 cat << EOF > ~/.ashrc
 PS1='\\n\\[\\033[37m\\]$USERNAME@$HOSTNAME\\[\\033[0m\\]\\n\\[\\033[1;34m\\]\\w\\[\\033[0m\\]\\n\\[\\033[1;32m\\]↝ \\[\\033[0m\\]'
-neofetch
 EOF
 
 # 4. Tự động load ~/.ashrc khi shell khởi động
